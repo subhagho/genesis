@@ -7,7 +7,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,10 +20,11 @@ import java.util.Map;
 public class BasicPipeline<T> extends BasicProcessor<T> implements Pipeline<T> {
     private Map<String, BasicProcessor<T>> processors = new HashMap<>();
     private Map<String, String> conditions = new HashMap<>();
+    private List<ExceptionProcessor<T>> exceptionProcessors;
 
     /**
      * Add a processor to this pipeline.
-     *
+     * <p>
      * If the condition string is non-null, it will be used to decide if this
      * processor should execute on the passed entity or skipped.
      *
@@ -29,13 +32,31 @@ public class BasicPipeline<T> extends BasicProcessor<T> implements Pipeline<T> {
      * @param condition - Condition string.
      * @return - Self.
      */
-    public BasicPipeline<T> addProcessor(@Nonnull BasicProcessor<T> processor,
+    @SuppressWarnings("unchecked")
+    public BasicPipeline<T> addProcessor(@Nonnull BasicProcessor<?> processor,
                                          String condition) {
         Preconditions.checkArgument(processor != null);
-        processors.put(processor.name, processor);
+        processors.put(processor.name, (BasicProcessor<T>) processor);
         if (!Strings.isNullOrEmpty(condition)) {
             conditions.put(processor.name, condition);
         }
+        return this;
+    }
+
+    /**
+     * Add an exception processor for this pipeline.
+     *
+     * @param handler - Exception Handler.
+     * @return - Self
+     */
+    public BasicPipeline<T> addErrorHandler(
+            @Nonnull ExceptionProcessor<T> handler) {
+        Preconditions.checkArgument(handler != null);
+
+        if (exceptionProcessors == null) {
+            exceptionProcessors = new ArrayList<>();
+        }
+        exceptionProcessors.add(handler);
         return this;
     }
 
@@ -86,9 +107,13 @@ public class BasicPipeline<T> extends BasicProcessor<T> implements Pipeline<T> {
                 try {
                     String condition = conditions.get(name);
                     response = processor.execute(response.data, condition, context);
+                    if (response.hasError()) {
+                        response = handleException(response);
+                    }
                     if (response.getState() == EProcessorResponse.FatalError ||
                             response.getState() ==
                                     EProcessorResponse.UnhandledError) {
+
                         throw new ProcessorException(response.getError());
                     } else if (response.getState() ==
                             EProcessorResponse.StopWithError) {
@@ -114,6 +139,21 @@ public class BasicPipeline<T> extends BasicProcessor<T> implements Pipeline<T> {
             }
         } else {
             response.setState(EProcessorResponse.Skipped);
+        }
+        return response;
+    }
+
+    /**
+     * Check and invoke the exception handlers.
+     *
+     * @param response - Exception Response.
+     * @return - Processed Response.
+     */
+    private ProcessorResponse<T> handleException(ProcessorResponse<T> response) {
+        if (exceptionProcessors != null && !exceptionProcessors.isEmpty()) {
+            for (ExceptionProcessor<T> ep : exceptionProcessors) {
+                response = ep.handleError(response);
+            }
         }
         return response;
     }

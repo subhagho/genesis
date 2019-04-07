@@ -89,7 +89,8 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
     throws ProcessorException {
         isAvailable();
 
-        ProcessorResponse<List<T>> response = new ProcessorResponse<>();
+        CollectionProcessorResponse<T> response =
+                new CollectionProcessorResponse<>();
         response.setState(EProcessorResponse.Unknown);
         response.setData(data);
         try {
@@ -110,7 +111,7 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
                     }
                 }
 
-                ProcessorResponse<List<T>> r = execute(data, context, response);
+                CollectionProcessorResponse<T> r = execute(data, context, response);
                 if (r == null) {
                     LogUtils.error(getClass(), String.format(
                             "BasicProcessor returned NULL response. [type=%s]",
@@ -149,8 +150,9 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
      * @param response - Processor Response.
      * @return - Processor Response.
      */
-    protected abstract ProcessorResponse<List<T>> execute(@Nonnull List<T> data,
-                                                          Context context,
-                                                          @Nonnull
-                                                                  ProcessorResponse<List<T>> response);
+    protected abstract CollectionProcessorResponse<T> execute(
+            @Nonnull List<T> data,
+            Context context,
+            @Nonnull
+                    CollectionProcessorResponse<T> response);
 }

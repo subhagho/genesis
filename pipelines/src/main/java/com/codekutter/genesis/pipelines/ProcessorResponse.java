@@ -45,6 +45,22 @@ public class ProcessorResponse<T> extends AbstractState<EProcessorResponse> {
     }
 
     /**
+     * Check if the state is in Error State.
+     *
+     * @return - In error state?
+     */
+    @Override
+    public boolean hasError() {
+        if (getState() == EProcessorResponse.ContinueWithError ||
+                getState() == EProcessorResponse.FatalError ||
+                getState() == EProcessorResponse.StopWithError ||
+                getState() == EProcessorResponse.UnhandledError) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Get the data handle for this response.
      *
      * @return - Data handle.

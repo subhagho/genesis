@@ -26,31 +26,70 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Loader class to read and parse pipeline definitions from a
+ * configuration.
+ *
+ * Note: Only XML based configurations are supported
+ * for pipeline definitions.
+ */
 public class PipelineLoader {
+    /**
+     * Struct to read pipeline definition from the configuration.
+     */
     @ConfigPath(path = "pipeline")
     @Data
     @ToString
     private static class PipelineDef {
+        /**
+         * Pipeline name. (Must be unique within a loader context)
+         */
         @ConfigAttribute(name = "name", required = true)
         private String name;
+        /**
+         * Pipeline Entity Type (Canonical class name).
+         */
         @ConfigAttribute(name = "entityType", required = true)
         private String entityType;
+        /**
+         * Pipeline class (Canonical class name).
+         */
         @ConfigAttribute(name = "type", required = true)
         private String type;
     }
 
+    /**
+     * Struct to read processor definition from the configuration.
+     */
     @ConfigPath(path = "processor")
     @Data
     @ToString
     private static class ProcessorDef {
+        /**
+         * Processor name. (Must be unique within a pipeline)
+         */
         @ConfigAttribute(name = "name", required = true)
         private String name;
+        /**
+         * Processor class (Canonical class name).
+         */
         @ConfigAttribute(name = "type", required = true)
         private String type;
+        /**
+         * Pipeline Entity Type (Canonical class name).
+         */
         @ConfigAttribute(name = "entityType", required = true)
         private String entityType;
+        /**
+         * Condition Query String (where clause expressed in
+         * SQL Syntax on the Entity)
+         */
         @ConfigValue(name = "condition", required = false)
         private String condition;
+        /**
+         * Reference Pipeline name - If pipeline is being
+         * embedded into another pipeline.
+         */
         @ConfigAttribute(name = "reference", required = false)
         private String reference;
     }
@@ -62,6 +101,15 @@ public class PipelineLoader {
 
     private Map<String, Pipeline<?>> pipelines = new HashMap<>();
 
+    /**
+     * Load the defined pipelines from the passed configuration.
+     *
+     * @param configName - Configuration Name.
+     * @param configUri - Configuration URI (local file or remote URL)
+     * @param version - Configuration Version (expected)
+     * @param settings - Configuration Settings.
+     * @throws ConfigurationException
+     */
     public void load(@Nonnull String configName,
                      @Nonnull String configUri, @Nonnull Version version,
                      ConfigurationSettings settings) throws ConfigurationException {
@@ -76,6 +124,12 @@ public class PipelineLoader {
         readPipelines(configuration);
     }
 
+    /**
+     * Read and parse the pipeline definitions.
+     *
+     * @param configuration - Configuration handle.
+     * @throws ConfigurationException
+     */
     private void readPipelines(Configuration configuration)
     throws ConfigurationException {
         AbstractConfigNode node =
@@ -103,8 +157,8 @@ public class PipelineLoader {
                 if (def == null) {
                     throw new ConfigurationException(String.format(
                             "Error reading pipeline definition: [path=%s][type=%s]",
-                            node.getSearchPath(),
-                            node.getClass().getCanonicalName()));
+                            pnode.getSearchPath(),
+                            pnode.getClass().getCanonicalName()));
                 }
                 readPipeline(def, (ConfigPathNode) pnode);
             } else {
@@ -136,6 +190,13 @@ public class PipelineLoader {
         }
     }
 
+    /**
+     * Parse a pipeline definition from the node.
+     *
+     * @param def - Pipeline Definition
+     * @param node - Configuration Node.
+     * @throws ConfigurationException
+     */
     @SuppressWarnings("unchecked")
     private void readPipeline(PipelineDef def, ConfigPathNode node)
     throws ConfigurationException {
@@ -152,7 +213,7 @@ public class PipelineLoader {
                         String.format("Invalid Pipeline Type: [type=%s]",
                                       obj.getClass().getCanonicalName()));
             }
-            Processor<?> pipeline = (Processor<?>)obj;
+            Processor<?> pipeline = (Processor<?>) obj;
             pipeline.setName(def.name);
             Class<?> eType = Class.forName(def.entityType);
             if (pipeline instanceof BasicPipeline<?>) {
@@ -160,17 +221,165 @@ public class PipelineLoader {
             } else if (pipeline instanceof CollectionPipeline<?>) {
                 ((CollectionPipeline) pipeline).setType(eType);
             }
-            
+            readProcessors((Pipeline<?>) pipeline, node);
+
+            pipelines.put(pipeline.name, (Pipeline<?>) pipeline);
+            LogUtils.info(getClass(),
+                          String.format("Added pipeline : [name=%s][type=%s]",
+                                        pipeline.name,
+                                        pipeline.getClass().getCanonicalName()));
         } catch (ClassNotFoundException e) {
             throw new ConfigurationException(e);
         }
     }
 
+    /**
+     * Read and parse the processor definitions for the pipeline.
+     *
+     * @param pipeline - Parent Pipeline.
+     * @param node - Configuration node.
+     * @throws ConfigurationException
+     */
+    private void readProcessors(Pipeline<?> pipeline, ConfigPathNode node)
+    throws ConfigurationException {
+        AbstractConfigNode pnode =
+                node.find(String.format("*.%s", CONFIG_NODE_PROCESSORS));
+        if (pnode == null) {
+            LogUtils.warn(getClass(),
+                          String.format("No pipelines found. [path=%s]",
+                                        node.getSearchPath()));
+            return;
+        }
+        if (!(pnode instanceof ConfigPathNode) &&
+                !(pnode instanceof ConfigListElementNode)) {
+            throw new ConfigurationException(
+                    String.format("Invalid Configuration Node: [path=%s][type=%s]",
+                                  pnode.getSearchPath(),
+                                  pnode.getClass().getCanonicalName()));
+        }
+        if (pnode instanceof ConfigPathNode) {
+            AbstractConfigNode cnode =
+                    ((ConfigPathNode) pnode).getChildNode(CONFIG_NODE_PIPELINE);
+            if (cnode instanceof ConfigPathNode) {
+                ProcessorDef def = ConfigurationAnnotationProcessor
+                        .readConfigAnnotations(ProcessorDef.class,
+                                               (ConfigPathNode) cnode);
+                if (def == null) {
+                    throw new ConfigurationException(String.format(
+                            "Error reading processor definition: [path=%s][type=%s]",
+                            node.getSearchPath(),
+                            node.getClass().getCanonicalName()));
+                }
+                readProcessor(pipeline, def, (ConfigPathNode) cnode);
+            } else {
+                throw new ConfigurationException(
+                        String.format(
+                                "Invalid Configuration Node: [path=%s][type=%s]",
+                                pnode.getSearchPath(),
+                                pnode.getClass().getCanonicalName()));
+            }
+        } else {
+            ConfigListElementNode nodeList = (ConfigListElementNode) pnode;
+            List<ConfigElementNode> values = nodeList.getValues();
+            if (values != null && !values.isEmpty()) {
+                for (ConfigElementNode elem : values) {
+                    if (elem.getName().compareTo(CONFIG_NODE_PROCESSOR) == 0) {
+                        ProcessorDef def = ConfigurationAnnotationProcessor
+                                .readConfigAnnotations(ProcessorDef.class,
+                                                       (ConfigPathNode) elem);
+                        if (def == null) {
+                            throw new ConfigurationException(String.format(
+                                    "Error reading processor definition: [path=%s][type=%s]",
+                                    node.getSearchPath(),
+                                    node.getClass().getCanonicalName()));
+                        }
+                        readProcessor(pipeline, def, (ConfigPathNode) elem);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Parse the processor definition and add it to the parent pipeline.
+     *
+     * @param pipeline - Parent Pipeline.
+     * @param def - Processor Definition.
+     * @param node - Configuration node.
+     * @throws ConfigurationException
+     */
+    @SuppressWarnings("unchecked")
+    private void readProcessor(Pipeline<?> pipeline, ProcessorDef def,
+                               ConfigPathNode node) throws ConfigurationException {
+        Processor<?> processor = null;
+        try {
+            if (!Strings.isNullOrEmpty(def.reference)) {
+                Pipeline<?> ref = getPipeline(def.reference);
+                if (ref == null) {
+                    throw new ConfigurationException(
+                            String.format("No pipeline reference found. [name=%s]",
+                                          def.reference));
+                }
+                processor = (Processor<?>) ref;
+            } else {
+                Class<?> cls = Class.forName(def.type);
+                Object obj = ConfigurationAnnotationProcessor
+                        .readConfigAnnotations(cls, node);
+                if (obj == null) {
+                    throw new ConfigurationException(
+                            "Annotation processor returned a NULL object");
+                }
+                if (!(obj instanceof Processor<?>)) {
+                    throw new ConfigurationException(
+                            String.format("Invalid Pipeline Type: [type=%s]",
+                                          obj.getClass().getCanonicalName()));
+                }
+                processor = (Processor<?>) obj;
+                processor.setName(def.name);
+                Class<?> eType = Class.forName(def.entityType);
+                if (processor instanceof BasicProcessor<?>) {
+                    ((BasicProcessor) processor).setType(eType);
+                } else if (processor instanceof CollectionProcessor<?>) {
+                    ((CollectionPipeline) processor).setType(eType);
+                }
+            }
+
+            if (pipeline instanceof BasicPipeline<?>) {
+                ((BasicPipeline<?>) pipeline)
+                        .addProcessor((BasicProcessor<?>) processor,
+                                      def.condition);
+            } else if (pipeline instanceof CollectionPipeline<?>) {
+                ((CollectionPipeline) pipeline)
+                        .addProcessor((CollectionProcessor<?>) processor,
+                                      def.condition);
+            }
+        } catch (ClassNotFoundException e) {
+            throw new ConfigurationException(e);
+        }
+    }
+
+    /**
+     * Get an instance of a pipeline.
+     *
+     * @param name - Pipeline name.
+     * @param <T> - Entity Type.
+     * @return - Pipeline instance.
+     */
     @SuppressWarnings("unchecked")
     public <T> Pipeline<T> getPipeline(String name) {
         return (Pipeline<T>) pipelines.get(name);
     }
 
+    /**
+     * Read and load the configuration from the specified URI.
+     *
+     * @param configName - Configuration name.
+     * @param configUri - Configuration URI.
+     * @param version - Configuration Version.
+     * @param settings - Configuration settings.
+     * @return - Configuration instance.
+     * @throws ConfigurationException
+     */
     private Configuration readConfig(String configName,
                                      String configUri,
                                      Version version,

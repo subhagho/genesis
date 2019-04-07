@@ -7,6 +7,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ public class CollectionPipeline<T> extends CollectionProcessor<T>
         implements Pipeline<List<T>> {
     private Map<String, CollectionProcessor<T>> processors = new HashMap<>();
     private Map<String, String> conditions = new HashMap<>();
+    private List<ExceptionProcessor<List<T>>> exceptionProcessors;
 
     /**
      * Add a processor to this pipeline.
@@ -26,14 +28,32 @@ public class CollectionPipeline<T> extends CollectionProcessor<T>
      * @param condition - Condition string.
      * @return - Self.
      */
+    @SuppressWarnings("unchecked")
     public CollectionPipeline<T> addProcessor(
-            @Nonnull CollectionProcessor<T> processor,
+            @Nonnull CollectionProcessor<?> processor,
             String condition) {
         Preconditions.checkArgument(processor != null);
-        processors.put(processor.name, processor);
+        processors.put(processor.name, (CollectionProcessor<T>) processor);
         if (!Strings.isNullOrEmpty(condition)) {
             conditions.put(processor.name, condition);
         }
+        return this;
+    }
+
+    /**
+     * Add an exception processor for this pipeline.
+     *
+     * @param handler - Exception Handler.
+     * @return - Self
+     */
+    public CollectionPipeline<T> addErrorHandler(
+            @Nonnull ExceptionProcessor<List<T>> handler) {
+        Preconditions.checkArgument(handler != null);
+
+        if (exceptionProcessors == null) {
+            exceptionProcessors = new ArrayList<>();
+        }
+        exceptionProcessors.add(handler);
         return this;
     }
 
@@ -73,10 +93,10 @@ public class CollectionPipeline<T> extends CollectionProcessor<T>
      * @return - Processor Response.
      */
     @Override
-    protected ProcessorResponse<List<T>> execute(@Nonnull List<T> data,
-                                                 Context context,
-                                                 @Nonnull
-                                                         ProcessorResponse<List<T>> response) {
+    protected CollectionProcessorResponse<T> execute(@Nonnull List<T> data,
+                                                     Context context,
+                                                     @Nonnull
+                                                             CollectionProcessorResponse<T> response) {
         Preconditions.checkArgument(data != null);
         Preconditions.checkArgument(response != null);
         if (!processors.isEmpty()) {
@@ -85,7 +105,11 @@ public class CollectionPipeline<T> extends CollectionProcessor<T>
                 CollectionProcessor<T> processor = processors.get(name);
                 try {
                     String condition = conditions.get(name);
-                    response = processor.execute(response.data, condition, context);
+                    response = (CollectionProcessorResponse<T>) processor
+                            .execute(response.data, condition, context);
+                    if (response.hasError()) {
+                        response = handleException(response);
+                    }
                     if (response.getState() == EProcessorResponse.FatalError ||
                             response.getState() ==
                                     EProcessorResponse.UnhandledError) {
@@ -114,6 +138,23 @@ public class CollectionPipeline<T> extends CollectionProcessor<T>
             }
         } else {
             response.setState(EProcessorResponse.Skipped);
+        }
+        return response;
+    }
+
+    /**
+     * Check and invoke the exception handlers.
+     *
+     * @param response - Exception Response.
+     * @return - Processed Response.
+     */
+    private CollectionProcessorResponse<T> handleException(
+            CollectionProcessorResponse<T> response) {
+        if (exceptionProcessors != null && !exceptionProcessors.isEmpty()) {
+            for (ExceptionProcessor<List<T>> ep : exceptionProcessors) {
+                response =
+                        (CollectionProcessorResponse<T>) ep.handleError(response);
+            }
         }
         return response;
     }
