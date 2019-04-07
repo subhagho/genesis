@@ -24,15 +24,36 @@
             <name>Temporary Staging Repository</name>
             <url>file://${genesis.pipelines.target}/</url>
         </repository>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <repositories>
+        <!-- http://repo1.maven.org/maven2 -->
+        <repository>
+            <id>release-repo</id>
+            <url>http://repo1.maven.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+
         <repository>
             <id>snapshots-repo</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-            <releases><enabled>false</enabled></releases>
-            <snapshots><enabled>true</enabled></snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
         </repository>
+
     </repositories>
 
     <dependencies>
@@ -119,13 +140,6 @@
         </dependency>
 
     </dependencies>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
     <build>
         <pluginManagement>
             <plugins>
@@ -142,7 +156,7 @@
                     <artifactId>maven-release-plugin</artifactId>
                     <version>2.5.1</version>
                     <configuration>
-                        <tagNameFormat>zconfig-@{project.version}</tagNameFormat>
+                        <tagNameFormat>genesis-@{project.version}</tagNameFormat>
                     </configuration>
                 </plugin>
                 <!-- This plugin will help us publish the source code -->
