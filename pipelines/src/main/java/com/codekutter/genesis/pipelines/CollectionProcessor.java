@@ -1,6 +1,10 @@
 package com.codekutter.genesis.pipelines;
 
+import com.codekutter.genesis.pipelines.utils.ConditionProcessor;
+import com.codekutter.genesis.pipelines.utils.ConditionProcessorFactory;
 import com.codekutter.zconfig.common.LogUtils;
+import com.codekutter.zconfig.common.model.annotations.ConfigAttribute;
+import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -12,24 +16,45 @@ import java.util.List;
  * @param <T> - Entity Type.
  */
 public abstract class CollectionProcessor<T> extends Processor<List<T>> {
-    private boolean includedFiltered = true;
+    @ConfigAttribute(name = "includeFilteredInResponse", required = false)
+    private boolean includeFiltered = true;
+    @ConfigAttribute(name = "type", required = true)
+    private Class<T> type;
 
     /**
      * Include records that were filtered in the returned result set.
      *
      * @return - Include Filtered?
      */
-    public boolean isIncludedFiltered() {
-        return includedFiltered;
+    public boolean isIncludeFiltered() {
+        return includeFiltered;
     }
 
     /**
      * Include records that were filtered in the returned result set.
      *
-     * @param includedFiltered - Include Filtered?
+     * @param includeFiltered - Include Filtered?
      */
-    public void setIncludedFiltered(boolean includedFiltered) {
-        this.includedFiltered = includedFiltered;
+    public void setIncludeFiltered(boolean includeFiltered) {
+        this.includeFiltered = includeFiltered;
+    }
+
+    /**
+     * Get the entity type for this processor.
+     *
+     * @return - Entity Type.
+     */
+    public Class<T> getType() {
+        return type;
+    }
+
+    /**
+     * Set the entity type for this processor.
+     *
+     * @param type - Entity Type.
+     */
+    public void setType(Class<T> type) {
+        this.type = type;
     }
 
     /**
@@ -40,7 +65,11 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
      * @return - Filtered Result Set.
      */
     private List<T> filter(List<T> data, String condition) {
-
+        if (!Strings.isNullOrEmpty(condition)) {
+            ConditionProcessor<T> processor =
+                    ConditionProcessorFactory.getProcessor(type);
+            return processor.filter(data, condition);
+        }
         return data;
     }
 
@@ -67,7 +96,7 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
             List<T> filtered = filter(data, condition);
             if (filtered == null || filtered.isEmpty()) {
                 response.setState(EProcessorResponse.Skipped);
-                if (includedFiltered) {
+                if (includeFiltered) {
                     response.data = data;
                 } else {
                     response.data = null;
@@ -96,7 +125,7 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
                             response.getState() == EProcessorResponse.FatalError) {
                         LogUtils.error(getClass(), response.getError());
                     }
-                    if (includedFiltered) {
+                    if (includeFiltered) {
                         if (r.data == null) {
                             r.data = removed;
                         } else {
@@ -122,5 +151,6 @@ public abstract class CollectionProcessor<T> extends Processor<List<T>> {
      */
     protected abstract ProcessorResponse<List<T>> execute(@Nonnull List<T> data,
                                                           Context context,
-                                                          @Nonnull ProcessorResponse<List<T>> response);
+                                                          @Nonnull
+                                                                  ProcessorResponse<List<T>> response);
 }

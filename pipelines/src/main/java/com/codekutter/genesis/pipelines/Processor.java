@@ -1,5 +1,8 @@
 package com.codekutter.genesis.pipelines;
 
+import com.codekutter.zconfig.common.ConfigurationException;
+import com.codekutter.zconfig.common.model.annotations.ConfigAttribute;
+import com.codekutter.zconfig.common.model.nodes.AbstractConfigNode;
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -18,6 +21,7 @@ public abstract class Processor<T> {
     /**
      * Name of this processor.
      */
+    @ConfigAttribute(name = "name", required = true)
     protected String name;
 
     /**
@@ -46,6 +50,7 @@ public abstract class Processor<T> {
     public EProcessState getState() {
         return state.getState();
     }
+
 
     /**
      * Check if the state of this processor matches the passed state.
@@ -83,6 +88,17 @@ public abstract class Processor<T> {
             state.setState(EProcessState.Disposed);
         }
     }
+
+    /**
+     * Method to initialize the processor from the configuration.
+     *
+     * Note: Use the MethodInvoke annotation with the required path
+     * to auto-wire the initialisation.
+     *
+     * @param node - Configuration Node.
+     * @throws ConfigurationException
+     */
+    public abstract void init(AbstractConfigNode node) throws ConfigurationException;
 
     /**
      * Processing method to be implemented by sub-classes. Entry method

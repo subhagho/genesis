@@ -1,6 +1,8 @@
 package com.codekutter.genesis.pipelines;
 
+import com.codekutter.zconfig.common.ConfigurationException;
 import com.codekutter.zconfig.common.LogUtils;
+import com.codekutter.zconfig.common.model.nodes.AbstractConfigNode;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -33,6 +35,33 @@ public class CollectionPipeline<T> extends CollectionProcessor<T>
             conditions.put(processor.name, condition);
         }
         return this;
+    }
+
+    /**
+     * Dispose this process instance.
+     */
+    @Override
+    public void dispose() {
+        super.dispose();
+        if (!processors.isEmpty()) {
+            for (String name : processors.keySet()) {
+                processors.get(name).dispose();
+            }
+        }
+    }
+
+    /**
+     * Method to initialize the processor from the configuration.
+     * <p>
+     * Note: Use the MethodInvoke annotation with the required path
+     * to auto-wire the initialisation.
+     *
+     * @param node - Configuration Node.
+     * @throws ConfigurationException
+     */
+    @Override
+    public void init(AbstractConfigNode node) throws ConfigurationException {
+        // Nothing Additional to be done.
     }
 
     /**
