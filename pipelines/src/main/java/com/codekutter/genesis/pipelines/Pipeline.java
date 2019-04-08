@@ -14,6 +14,13 @@ public interface Pipeline<T> {
     EProcessState getState();
 
     /**
+     * Get the entity type this pipeline handles.
+     *
+     * @return - Entity type.
+     */
+    Class<?> getType();
+
+    /**
      * Dispose this instance of the pipeline.
      */
     void dispose();

@@ -2,8 +2,8 @@ package com.codekutter.genesis.pipelines;
 
 import com.codekutter.genesis.pipelines.utils.ConditionProcessor;
 import com.codekutter.genesis.pipelines.utils.ConditionProcessorFactory;
-import com.codekutter.zconfig.common.model.annotations.ConfigAttribute;
 import com.codekutter.zconfig.common.model.annotations.ConfigValue;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
@@ -14,7 +14,6 @@ import javax.annotation.Nonnull;
  * @param <T> - Entity Type.
  */
 public abstract class ExceptionProcessor<T> {
-    @ConfigAttribute(name = "type", required = true)
     private Class<T> type;
     @ConfigValue(name = "condition", required = false)
     private String condition;
@@ -33,8 +32,10 @@ public abstract class ExceptionProcessor<T> {
      *
      * @param type - Entity Type.
      */
-    public void setType(Class<T> type) {
-        this.type = type;
+    @SuppressWarnings("unchecked")
+    public void setType(@Nonnull Class<?> type) {
+        Preconditions.checkArgument(type != null);
+        this.type = (Class<T>) type;
     }
 
     /**

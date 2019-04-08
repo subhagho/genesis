@@ -36,6 +36,7 @@ public class BasicPipeline<T> extends BasicProcessor<T> implements Pipeline<T> {
     public BasicPipeline<T> addProcessor(@Nonnull BasicProcessor<?> processor,
                                          String condition) {
         Preconditions.checkArgument(processor != null);
+
         processors.put(processor.name, (BasicProcessor<T>) processor);
         if (!Strings.isNullOrEmpty(condition)) {
             conditions.put(processor.name, condition);
@@ -49,14 +50,15 @@ public class BasicPipeline<T> extends BasicProcessor<T> implements Pipeline<T> {
      * @param handler - Exception Handler.
      * @return - Self
      */
+    @SuppressWarnings("unchecked")
     public BasicPipeline<T> addErrorHandler(
-            @Nonnull ExceptionProcessor<T> handler) {
+            @Nonnull ExceptionProcessor<?> handler) {
         Preconditions.checkArgument(handler != null);
 
         if (exceptionProcessors == null) {
             exceptionProcessors = new ArrayList<>();
         }
-        exceptionProcessors.add(handler);
+        exceptionProcessors.add((ExceptionProcessor<T>) handler);
         return this;
     }
 

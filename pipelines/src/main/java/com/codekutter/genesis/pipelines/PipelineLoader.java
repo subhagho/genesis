@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * Loader class to read and parse pipeline definitions from a
  * configuration.
- *
+ * <p>
  * Note: Only XML based configurations are supported
  * for pipeline definitions.
  */
@@ -98,6 +98,9 @@ public class PipelineLoader {
     private static final String CONFIG_NODE_PIPELINE = "pipeline";
     private static final String CONFIG_NODE_PROCESSORS = "processors";
     private static final String CONFIG_NODE_PROCESSOR = "processor";
+    private static final String CONFIG_NODE_ERROR_PS = "errorHandlers";
+    private static final String CONFIG_NODE_ERROR_P = "errorHandler";
+    private static final String CONFIG_ATTR_ERROR_H_TYPE = "type";
 
     private Map<String, Pipeline<?>> pipelines = new HashMap<>();
 
@@ -105,9 +108,9 @@ public class PipelineLoader {
      * Load the defined pipelines from the passed configuration.
      *
      * @param configName - Configuration Name.
-     * @param configUri - Configuration URI (local file or remote URL)
-     * @param version - Configuration Version (expected)
-     * @param settings - Configuration Settings.
+     * @param configUri  - Configuration URI (local file or remote URL)
+     * @param version    - Configuration Version (expected)
+     * @param settings   - Configuration Settings.
      * @throws ConfigurationException
      */
     public void load(@Nonnull String configName,
@@ -193,7 +196,7 @@ public class PipelineLoader {
     /**
      * Parse a pipeline definition from the node.
      *
-     * @param def - Pipeline Definition
+     * @param def  - Pipeline Definition
      * @param node - Configuration Node.
      * @throws ConfigurationException
      */
@@ -223,6 +226,13 @@ public class PipelineLoader {
             }
             readProcessors((Pipeline<?>) pipeline, node);
 
+            AbstractConfigNode enode = node.getChildNode(CONFIG_NODE_ERROR_PS);
+            if (enode != null) {
+                if (enode instanceof ConfigPathNode) {
+                    readErrorHandlers((Pipeline<?>) pipeline,
+                                      enode);
+                }
+            }
             pipelines.put(pipeline.name, (Pipeline<?>) pipeline);
             LogUtils.info(getClass(),
                           String.format("Added pipeline : [name=%s][type=%s]",
@@ -234,10 +244,103 @@ public class PipelineLoader {
     }
 
     /**
+     * Read all the exception handlers specified in the configuration for
+     * a pipeline.
+     *
+     * @param pipeline - Parent Pipeline
+     * @param node - Configuration Node.
+     * @throws ConfigurationException
+     */
+    private void readErrorHandlers(Pipeline<?> pipeline,
+                                   AbstractConfigNode node)
+    throws ConfigurationException {
+
+        if (node instanceof ConfigPathNode) {
+            AbstractConfigNode cnode =
+                    ((ConfigPathNode) node).getChildNode(CONFIG_NODE_ERROR_P);
+            readErrorHandler(pipeline, node);
+        } else if (node instanceof ConfigListElementNode) {
+            ConfigListElementNode nodeList = (ConfigListElementNode) node;
+            List<ConfigElementNode> nodes = nodeList.getValues();
+            if (nodes != null && !((ConfigListElementNode) node).isEmpty()) {
+                for (ConfigElementNode elem : nodes) {
+                    if (elem instanceof ConfigPathNode &&
+                            elem.getName().compareTo(CONFIG_NODE_ERROR_P) == 0) {
+                        readErrorHandler(pipeline, elem);
+                    }
+                }
+            }
+        }
+
+    }
+
+    /**
+     * Read an exception handler from the configuration.
+     *
+     * @param pipeline - Parent Pipeline.
+     * @param node     - Configuration node.
+     * @throws ConfigurationException
+     */
+    private void readErrorHandler(Pipeline<?> pipeline,
+                                  AbstractConfigNode node)
+    throws ConfigurationException {
+        try {
+            if (node instanceof ConfigPathNode) {
+                ConfigAttributesNode attrs =
+                        ((ConfigPathNode) node).attributes();
+                if (attrs == null) {
+                    throw new ConfigurationException(
+                            String.format(
+                                    "Required Attribute not found. [path=%s]",
+                                    node.getSearchPath()));
+                }
+                ConfigValueNode vn = attrs.getValue(CONFIG_ATTR_ERROR_H_TYPE);
+                if (vn == null) {
+                    throw new ConfigurationException(
+                            String.format(
+                                    "Required Attribute not found. [path=%s][attribute=%s]",
+                                    node.getSearchPath(),
+                                    CONFIG_ATTR_ERROR_H_TYPE));
+                }
+                String type = vn.getValue();
+                Class<?> cls = Class.forName(type);
+                Object ep = ConfigurationAnnotationProcessor
+                        .readConfigAnnotations(cls, (ConfigPathNode) node);
+                if (pipeline instanceof BasicPipeline<?>) {
+                    if (ep instanceof ExceptionProcessor<?>) {
+                        ExceptionProcessor<?> processor =
+                                (ExceptionProcessor<?>) ep;
+                        processor.setType(pipeline.getType());
+                        processor = ConfigurationAnnotationProcessor
+                                .readConfigAnnotations(processor.getClass(),
+                                                       (ConfigPathNode) node,
+                                                       processor);
+                        ((BasicPipeline<?>) pipeline).addErrorHandler(processor);
+                        LogUtils.debug(getClass(), String.format(
+                                "Added exception processor. [type=%s]",
+                                ep.getClass().getCanonicalName()));
+                    } else {
+                        throw new ConfigurationException(String.format(
+                                "Invalid Exception Processor: [type=%s]",
+                                ep.getClass().getCanonicalName()));
+                    }
+                }
+            } else {
+                throw new ConfigurationException(
+                        String.format("Invalid Node type: [type=%s][path=%s]",
+                                      node.getClass().getCanonicalName(),
+                                      node.getSearchPath()));
+            }
+        } catch (ClassNotFoundException e) {
+            throw new ConfigurationException(e);
+        }
+    }
+
+    /**
      * Read and parse the processor definitions for the pipeline.
      *
      * @param pipeline - Parent Pipeline.
-     * @param node - Configuration node.
+     * @param node     - Configuration node.
      * @throws ConfigurationException
      */
     private void readProcessors(Pipeline<?> pipeline, ConfigPathNode node)
@@ -304,8 +407,8 @@ public class PipelineLoader {
      * Parse the processor definition and add it to the parent pipeline.
      *
      * @param pipeline - Parent Pipeline.
-     * @param def - Processor Definition.
-     * @param node - Configuration node.
+     * @param def      - Processor Definition.
+     * @param node     - Configuration node.
      * @throws ConfigurationException
      */
     @SuppressWarnings("unchecked")
@@ -362,7 +465,7 @@ public class PipelineLoader {
      * Get an instance of a pipeline.
      *
      * @param name - Pipeline name.
-     * @param <T> - Entity Type.
+     * @param <T>  - Entity Type.
      * @return - Pipeline instance.
      */
     @SuppressWarnings("unchecked")
@@ -374,9 +477,9 @@ public class PipelineLoader {
      * Read and load the configuration from the specified URI.
      *
      * @param configName - Configuration name.
-     * @param configUri - Configuration URI.
-     * @param version - Configuration Version.
-     * @param settings - Configuration settings.
+     * @param configUri  - Configuration URI.
+     * @param version    - Configuration Version.
+     * @param settings   - Configuration settings.
      * @return - Configuration instance.
      * @throws ConfigurationException
      */
