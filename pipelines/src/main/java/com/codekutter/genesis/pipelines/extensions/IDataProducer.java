@@ -9,7 +9,7 @@ import java.util.List;
  *
  * @param <T> - Entity Type.
  */
-public interface DataProducer<T> {
+public interface IDataProducer<T> {
     /**
      * Fetch a data set based on the passed query.
      *

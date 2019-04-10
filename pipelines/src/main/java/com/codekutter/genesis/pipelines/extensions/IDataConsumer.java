@@ -11,7 +11,7 @@ import java.util.List;
  * @param <T> - Entity Type
  * @param <O> - Operation Type
  */
-public interface DataConsumer<T, O> {
+public interface IDataConsumer<T, O> {
     /**
      * Process an entity instance.
      *

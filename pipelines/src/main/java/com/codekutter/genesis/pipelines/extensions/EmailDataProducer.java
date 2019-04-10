@@ -24,7 +24,7 @@ import java.util.Properties;
  */
 @Data
 @ConfigPath(path = "emailDataProducer")
-public class EmailDataProducer implements DataProducer<Message> {
+public class EmailDataProducer implements IDataProducer<Message> {
     private static final int DEFAULT_SSL_PORT = 993;
     private static final int DEFAULT_IMAP_PORT = 143;
     private static final String DEFAULT_IMAP_FOLDER = "INBOX";

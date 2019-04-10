@@ -22,7 +22,7 @@ import java.util.Properties;
  */
 @ConfigPath(path = "emailDataConsumer")
 @Data
-public class EmailDataConsumer implements DataConsumer<Message, EEmailOperations> {
+public class EmailDataConsumer implements IDataConsumer<Message, EEmailOperations> {
     @ConfigAttribute(name = "server", required = true)
     private String server;
     @ConfigAttribute(name = "port", required = false)
