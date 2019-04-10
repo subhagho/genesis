@@ -85,7 +85,7 @@ public class ConditionProcessor<T> {
     }
 
     private String getFormattedQuery(Class<?> type, String condition) {
-        String source = type.getSimpleName();
+        String source = type.getName();
         return String.format("SELECT * FROM %s WHERE (%s)", source, condition);
     }
 }

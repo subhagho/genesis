@@ -25,10 +25,16 @@
 <root>
     <header ID="UNIQUE-99918239013" group="TEST-APP-GROUP" application="TEST-APPLICATION" name="test-config" version="0.2">
         <description>This is a test Pipeline XML configuration file.</description>
-        <createdBy user="subho" tiemstamp="1552835141000" />
-        <updatedBy user="subho" tiemstamp="1552835341000" />
+        <createdBy user="subho" tiemstamp="1552835141000"/>
+        <updatedBy user="subho" tiemstamp="1552835341000"/>
     </header>
     <pipelines>
+        <pipeline name="filter" type="com.codekutter.genesis.pipelines.processors.EntityFilterPipeline" entityType="com.codekutter.genesis.pipelines.processors.DemoEntity">
+            <processors>
+                <processor name="filter" type="com.codekutter.genesis.pipelines.processors.EntityStateFilter" entityType="com.codekutter.genesis.pipelines.processors.DemoEntity">
 
+                </processor>
+            </processors>
+        </pipeline>
     </pipelines>
 </root>
