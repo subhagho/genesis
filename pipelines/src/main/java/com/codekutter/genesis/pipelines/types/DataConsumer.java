@@ -13,8 +13,8 @@ import javax.annotation.Nonnull;
  * @param <T> - Entity Type.
  * @param <O> - Operation Type.
  */
-public abstract class DataConsumer<T, O> extends BasicProcessor<T> {
-    public static final String CONTEXT_KEY_OPERATION = "data.consumer.operation";
+public abstract class DataConsumer<T, O> extends BasicProcessor<T>
+        implements IOperationParser<O> {
 
     protected IDataConsumer<T, O> consumer;
 
@@ -59,12 +59,5 @@ public abstract class DataConsumer<T, O> extends BasicProcessor<T> {
         return response;
     }
 
-    /**
-     * Parse the operation type based on the input context object.
-     *
-     * @param operation - Operation context object.
-     * @return - Operation type.
-     * @throws ProcessorException
-     */
-    protected abstract O parseOperation(Object operation) throws ProcessorException;
+
 }

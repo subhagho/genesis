@@ -6,41 +6,47 @@ import com.google.common.base.Preconditions;
 import lombok.Data;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Abstract base class for implemented entity transformation processor.
+ * Abstract base class for implemented entity collection transformation processor.
  *
  * @param <S> - Source Entity Type.
  * @param <T> - Target Entity Type.
  */
 @Data
-public abstract class Transformer<S, T> extends BasicProcessor<S> {
-    protected BasicProcessor<T> processor;
+public abstract class CollectionTransformer<S, T> extends CollectionProcessor<S> {
+
+    protected CollectionProcessor<T> processor;
     protected IEntityTransformer<S, T> transformer;
 
     /**
      * Execute method to be implemented for processing the data passed.
      *
-     * @param data     - Entity Object.
+     * @param data     - List of Entity Object.
      * @param context  - Context Handle
      * @param response - Processor Response.
      * @return - Processor Response.
      */
     @Override
-    protected ProcessorResponse<S> execute(@Nonnull S data,
-                                           Context context,
-                                           @Nonnull ProcessorResponse<S> response) {
-        Preconditions.checkArgument(data != null);
+    protected CollectionProcessorResponse<S> execute(@Nonnull List<S> data,
+                                                     Context context, @Nonnull
+                                                             CollectionProcessorResponse<S> response) {
+        Preconditions.checkArgument(data != null && !data.isEmpty());
         Preconditions.checkArgument(response != null);
 
         try {
-            T output = transformer.transform(data);
-            if (output == null) {
-                response.setData(null);
-                response.setState(EProcessorResponse.NullData);
-            } else {
-                ProcessorResponse<T> resp =
-                        processor.execute(output, null, context);
+            List<T> targetData = new ArrayList<>();
+            for (S d : data) {
+                T t = transformer.transform(d);
+                if (t != null) {
+                    targetData.add(t);
+                }
+            }
+            if (!targetData.isEmpty()) {
+                ProcessorResponse<List<T>> resp =
+                        processor.execute(targetData, null, context);
                 if (resp.hasError()) {
                     if (resp.getState() == EProcessorResponse.FatalError) {
                         throw new ProcessorException(resp.getError());
@@ -51,6 +57,9 @@ public abstract class Transformer<S, T> extends BasicProcessor<S> {
                         response.setError(resp.getState(), resp.getError());
                     }
                 }
+            } else {
+                response.setData(null);
+                response.setState(EProcessorResponse.NullData);
             }
         } catch (TransformtationException | ProcessorException ex) {
             LogUtils.debug(getClass(), ex);

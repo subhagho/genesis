@@ -14,7 +14,8 @@ import java.util.List;
  * @param <T> - Entity Type.
  * @param <O> - Operation Type.
  */
-public abstract class CollectionDataConsumer<T, O> extends CollectionProcessor<T> {
+public abstract class CollectionDataConsumer<T, O> extends CollectionProcessor<T>
+        implements IOperationParser<O> {
     protected IDataConsumer<T, O> consumer;
 
     /**
@@ -34,13 +35,13 @@ public abstract class CollectionDataConsumer<T, O> extends CollectionProcessor<T
         Preconditions.checkArgument(response != null);
 
         try {
-            Object os = context.getParameter(DataConsumer.CONTEXT_KEY_OPERATION);
+            Object os = context.getParameter(CONTEXT_KEY_OPERATION);
             if (os == null) {
                 response.setError(EProcessorResponse.FatalError,
                                   new ProcessorException(
                                           String.format(
                                                   "Operation not found in Context. [key=%s]",
-                                                  DataConsumer.CONTEXT_KEY_OPERATION)));
+                                                  CONTEXT_KEY_OPERATION)));
             }
             O operation = parseOperation(os);
             data = consumer.process(data, operation, context);
@@ -53,13 +54,4 @@ public abstract class CollectionDataConsumer<T, O> extends CollectionProcessor<T
         }
         return response;
     }
-
-    /**
-     * Parse the operation type based on the input context object.
-     *
-     * @param operation - Operation context object.
-     * @return - Operation type.
-     * @throws ProcessorException
-     */
-    protected abstract O parseOperation(Object operation) throws ProcessorException;
 }
