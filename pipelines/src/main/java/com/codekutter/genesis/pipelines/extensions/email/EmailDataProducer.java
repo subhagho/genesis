@@ -10,6 +10,10 @@ import com.codekutter.zconfig.common.model.nodes.AbstractConfigNode;
 import com.codekutter.zconfig.common.model.nodes.ConfigPathNode;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.SpelNode;
@@ -25,16 +29,14 @@ import javax.mail.search.OrTerm;
 import javax.mail.search.SearchTerm;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
  * Data producer implementation for getting Emails
  * from a mail server. (IMAP protocol required).
  */
+@Data
 @ConfigPath(path = "emailDataProducer")
 public class EmailDataProducer implements IDataProducer<Message> {
     private static final int DEFAULT_SSL_PORT = 993;
@@ -50,55 +52,35 @@ public class EmailDataProducer implements IDataProducer<Message> {
     @ConfigValue(name = "username")
     private String username;
     @ConfigValue(name = "password")
+    @Getter(AccessLevel.NONE)
     private String password;
     @ConfigAttribute(name = "folder")
     private String folder = DEFAULT_IMAP_FOLDER;
     private EmailQueryParser queryParser = new EmailQueryParser();
 
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private boolean initialized = false;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private Properties properties = new Properties();
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private Session session;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private Store messageStore;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private Folder currentFolder;
 
-    public String getServer() {
-        return server;
-    }
-
-    public void setServer(String server) {
-        this.server = server;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public boolean isUseSSL() {
-        return useSSL;
-    }
-
-    public void setUseSSL(boolean useSSL) {
-        this.useSSL = useSSL;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
+    /**
+     * Get the date format supported by the Query parser.
+     *
+     * @return - Supported Date format.
+     */
+    public String getDateFormat() {
+        return queryParser.getDateFormat();
     }
 
     /**
@@ -167,6 +149,11 @@ public class EmailDataProducer implements IDataProducer<Message> {
         init(null);
     }
 
+    /**
+     * Close this email producer instance.
+     *
+     * @throws IOException
+     */
     @Override
     public void close() throws IOException {
         try {
@@ -326,7 +313,6 @@ public class EmailDataProducer implements IDataProducer<Message> {
     /**
      * Fetch all emails that match the search condition. (currently not supported)
      * <p>
-     * TODO: Implement Search.
      *
      * @param query   - Search Condition.
      * @param context - Context handle.
@@ -450,6 +436,13 @@ public class EmailDataProducer implements IDataProducer<Message> {
             .compile(Pattern.quote("text/html"),
                      Pattern.CASE_INSENSITIVE);
 
+    /**
+     * Read the HTML content of the message.
+     *
+     * @param message - Input Email Message
+     * @return - HTML as String.
+     * @throws Exception
+     */
     public static String getHtmlContent(Message message) throws Exception {
         Object content = message.getContent();
         if (content instanceof Multipart) {
@@ -461,6 +454,22 @@ public class EmailDataProducer implements IDataProducer<Message> {
                     return (String) bp.getContent();
                 } else {
                     // some other bodypart...
+                }
+            }
+        }
+        return null;
+    }
+
+    private static final String MESSAGE_ID_HEADER = "Message-ID";
+
+    public static String getMessageId(Message message) throws Exception {
+        Enumeration headers = message.getAllHeaders();
+        if (headers != null) {
+            while (headers.hasMoreElements()) {
+                Header h = (Header) headers.nextElement();
+                String mID = h.getName();
+                if (mID.contains(MESSAGE_ID_HEADER)) {
+                    return h.getValue();
                 }
             }
         }

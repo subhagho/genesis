@@ -1,6 +1,4 @@
 package com.codekutter.genesis.pipelines.extensions.email;
-
-import com.codekutter.genesis.pipelines.extensions.email.EmailDataProducer;
 import com.codekutter.zconfig.common.LogUtils;
 import com.google.common.base.Strings;
 import org.junit.jupiter.api.BeforeAll;
@@ -9,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import javax.mail.Message;
 import javax.mail.Multipart;
 import java.io.InputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -34,14 +34,24 @@ class EmailDataProducerTest {
     @Test
     void fetch() {
         try {
-            String query = String.format(
-                    "message.receivedDate < \"%s\" and message.receivedDate >= \"%s\"",
-                    new Date().toString(), new Date(0).toString());
+            String format = dataProducer.getDateFormat();
+            DateFormat fmt = new SimpleDateFormat(format);
+
+            String query =
+                    String.format(
+                            "receivedDate between {\"%s\", \"%s\"}",
+                            fmt.format(new Date(0)),
+                            fmt.format(new Date()));
+
             List<Message> messages = dataProducer.fetch(query, null);
             assertNotNull(messages);
             for (Message message : messages) {
-                LogUtils.debug(getClass(), message.getClass().getCanonicalName());
-
+                String mid = EmailDataProducer.getMessageId(message);
+                assertFalse(Strings.isNullOrEmpty(mid));
+                LogUtils.debug(getClass(), String.format("[type=%s][ID=%s]",
+                                                         message.getClass()
+                                                                .getCanonicalName(),
+                                                         mid));
                 Object content = message.getContent();
                 if (content != null) {
                     if (content instanceof String) {
