@@ -2,7 +2,7 @@ package com.codekutter.genesis.pipelines.impl;
 
 import com.codekutter.genesis.pipelines.*;
 import com.codekutter.genesis.pipelines.extensions.EEmailOperations;
-import com.codekutter.genesis.pipelines.extensions.EmailDataConsumer;
+import com.codekutter.genesis.pipelines.extensions.email.EmailDataConsumer;
 import com.codekutter.genesis.pipelines.types.DataConsumer;
 import com.codekutter.zconfig.common.ConfigurationAnnotationProcessor;
 import com.codekutter.zconfig.common.ConfigurationException;
@@ -28,7 +28,7 @@ public class EmailConsumer extends DataConsumer<Message, EEmailOperations> {
      * @throws ProcessorException
      */
     @Override
-    protected EEmailOperations parseOperation(Object operation)
+    public EEmailOperations parseOperation(Object operation)
     throws ProcessorException {
         Preconditions
                 .checkArgument(operation != null && (operation instanceof Strings));

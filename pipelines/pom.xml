@@ -144,6 +144,12 @@
             <artifactId>commons-email</artifactId>
             <version>1.5</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.springframework/spring-expression -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-expression</artifactId>
+            <version>5.1.6.RELEASE</version>
+        </dependency>
 
     </dependencies>
 

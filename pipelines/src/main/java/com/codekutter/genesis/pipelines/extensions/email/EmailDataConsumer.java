@@ -1,6 +1,9 @@
-package com.codekutter.genesis.pipelines.extensions;
+package com.codekutter.genesis.pipelines.extensions.email;
 
 import com.codekutter.genesis.pipelines.Context;
+import com.codekutter.genesis.pipelines.extensions.DataServiceException;
+import com.codekutter.genesis.pipelines.extensions.EEmailOperations;
+import com.codekutter.genesis.pipelines.extensions.IDataConsumer;
 import com.codekutter.zconfig.common.ConfigurationAnnotationProcessor;
 import com.codekutter.zconfig.common.ConfigurationException;
 import com.codekutter.zconfig.common.GlobalConstants;
@@ -13,6 +16,7 @@ import lombok.Data;
 
 import javax.mail.Message;
 import javax.mail.Transport;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -72,6 +76,11 @@ public class EmailDataConsumer implements IDataConsumer<Message, EEmailOperation
         producer = ConfigurationAnnotationProcessor
                 .readConfigAnnotations(EmailDataProducer.class,
                                        (ConfigPathNode) config);
+    }
+
+    @Override
+    public void close() throws IOException {
+
     }
 
     /**

@@ -1,6 +1,6 @@
 package com.codekutter.genesis.pipelines.impl;
 
-import com.codekutter.genesis.pipelines.extensions.EmailDataProducer;
+import com.codekutter.genesis.pipelines.extensions.email.EmailDataProducer;
 import com.codekutter.genesis.pipelines.types.CollectionDataProducer;
 import com.codekutter.zconfig.common.ConfigurationAnnotationProcessor;
 import com.codekutter.zconfig.common.ConfigurationException;

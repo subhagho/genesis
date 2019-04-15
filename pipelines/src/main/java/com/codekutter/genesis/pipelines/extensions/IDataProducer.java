@@ -2,6 +2,7 @@ package com.codekutter.genesis.pipelines.extensions;
 
 import com.codekutter.genesis.pipelines.Context;
 
+import java.io.Closeable;
 import java.util.List;
 
 /**
@@ -9,7 +10,7 @@ import java.util.List;
  *
  * @param <T> - Entity Type.
  */
-public interface IDataProducer<T> {
+public interface IDataProducer<T> extends Closeable {
     /**
      * Fetch a data set based on the passed query.
      *
